@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title></title>
+    <script src="main.js"></script>
+    <style>
+        .main {
+            width: auto;
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: stretch;
+        }
+
+        #canvas {
+            border: 1px solid #000000;
+            border-radius: 1rem;
+        }
+
+        #video {
+            display: none;
+        }
+
+        .layers {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding: 0 1rem;
+        }
+
+        .layers>div {
+            margin: 0.3rem 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .layers>div:first-of-type {
+            margin: 0 0 0.3rem 0;
+        }
+
+        .layers>div>span {
+            display: block;
+            font-family: sans-serif;
+            font-size: 0.8rem;
+            border: 1px solid #bdbdbd;
+            line-height: 1;
+            padding: 0.3rem 0.5rem;
+            border-radius: 0.5rem 0 0 0.5rem;
+            background-color: #eeeeee;
+        }
+
+        .layers>div>em {
+            font-weight: normal;
+            font-style: normal;
+            color: #000000;
+            line-height: 1;
+            background-color: #616161;
+            background-color: #bdbdbd;
+            padding: 0.2rem 0.5rem 0.3rem 0.5rem;
+            vertical-align: middle;
+            cursor: pointer;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+
+        .layers>h5 {
+            text-align: center;
+            margin: 0;
+            padding: 0.5rem;
+            font-family: sans-serif;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+            padding: 1rem 0.5rem;
+            margin: 1rem 0.5rem;
+            background-color: #cccccc;
+            border-radius: 2rem;
+        }
+
+        .controls>button {
+            margin: 0.3rem 0;
+            background-color: transparent;
+            border: 0;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .controls img {
+            width: 2rem;
+            height: 2rem;
+        }
+
+        .controls label {
+            display: flex;
+            justify-content: center;
+            margin: 0.3rem 0;
+            padding: 0;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .controls input {
+            display: none;
+        }
+
+        .video {
+            position: relative;
+        }
+
+        .video canvas {
+            position: relative;
+            z-index: 1;
+        }
+
+        .video .overlay {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            z-index: 2;
+            display: none;
+        }
+
+        @keyframes opacityAnimation {
+            from {
+                opacity: 0.3;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .overlay img {
+            width: 2rem;
+            height: 2rem;
+            animation: opacityAnimation 1s infinite alternate;
+        }
+
+        .volume {
+            position: relative;
+            margin: 1rem 0.5rem 3rem 0.5rem;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .volume div {
+            position: absolute;
+            height: 100%;
+            left: 0px;
+            right: 0px;
+            top: 0;
+            background-color: #388E3C;
+            z-index: 1;
+            border-radius: 1rem;
+
+        }
+
+        .volume img {
+            display: block;
+            position: relative;
+            z-index: 2;
+            top: 103%;
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+
+        .playback-player {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <section class="main">
+        <div class="controls">
+            <button id="volume-up"><img src="./icons/volume-up.png" alt="" />vol up</button>
+            <button id="volume-down"><img src="./icons/volume-down.png" alt="" />vol down</button>
+            <button id="canvas-stop"><img src="./icons/stop.png" alt="" />stream stop</button>
+            <button id="canvas-play"><img src="./icons/play.png" alt="" />stream start</button>
+            <button id="start-record"><img src="./icons/record-start.png" alt="" />start record</button>
+            <button id="stop-record"><img src="./icons/record-stop.png" alt="" />stop record</button>
+            <label for="image-upload"><img src="./icons/upload.png" alt="" /><input id="image-upload" type="file"
+                    accept="image/*" />upload</label>
+        </div>
+        <div class="video">
+            <video id="video" width="400" height="300"></video>
+            <canvas id="canvas" width="600" height="500"></canvas>
+            <div id="overlay" class="overlay"><img src="./icons/recording.png" alt=""></div>
+        </div>
+        <div class="volume">
+            <div id="volume"></div><img src="./icons/volume.png" alt="" />
+        </div>
+        <div id="layers" class="layers">
+            <h5>Layers</h5>
+        </div>
+    </section>
+    <section class="playback">
+        <div class="playback-player">
+            <video id="playback-player" src="" width="640" height="360" controls></video>
+        </div>
+
+    </section>
+    <script type="text/javascript">
+        const commandPublisher = new CommandPublisher();
+        let canvasControl;
+
+        window.onload = () => {
+
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            const video = document.createElement('video');
+            const play = document.getElementById("play");
+            const ImageUpload = document.getElementById("image-upload");
+
+            const layers = document.getElementById("layers");
+            const overlay = document.getElementById("overlay");
+            const volume = document.getElementById("volume");
+            const volumeUp = document.getElementById("volume-up");
+            const volumeDown = document.getElementById("volume-down");
+            const playback = document.getElementById("playback-player");
+
+            // Event Listener for Image Upload
+            ImageUpload.addEventListener('change', captureImageData, false);
+
+            // Initialize the CanvasControl
+            canvasControl = CanvasControl({
+                canvas: canvas,
+                play: document.getElementById('canvas-play'),
+                stop: document.getElementById('canvas-stop'),
+                startRecord: document.getElementById('start-record'),
+                stopRecord: document.getElementById('stop-record'),
+                overlay: overlay,
+                source: video,
+                volume: volume,
+                volumeUp: volumeUp,
+                volumeDown: volumeDown,
+                playback: playback
+            });
+
+            const listManager = ListManager({
+                container: layers,
+                createListItem: function (o) {
+                    let div = document.createElement('div');
+                    let self = this;
+                    div.innerHTML = `<div><span>${o.name}</span><em layerId="${o.id}">x</em></div>`;
+                    div.getElementsByTagName('em')[0].addEventListener('click', function (event) {
+                        let id = event.target.getAttribute('layerId')
+                        self.remove({ id: id });
+                        canvasControl.removeLayer(id);
+                    });
+                    return div.firstChild;
+                }
+            });
+
+            /**
+             * @function audioVideoStream
+             * @description
+             * Obtains the audio and video stream from the user's media devices.
+             * Sets up the video element with the media stream and configures the `CanvasControl`.
+             */
+            audioVideoStream().then(stream => {
+                if ('srcObject' in video) {
+                    video.srcObject = stream;
+                } else {
+                    video.src = url.createObjectURL(stream);
+                }
+
+                canvasControl.setStream(stream);
+            });
+
+            // setcanvas
+            canvasControl.setCanvas(canvas);
+            // Add initial video layer to the canvas
+            canvasControl.addLayer(null, function (layer) {
+                layer.context.drawImage(this.source, 0, 0, context.canvas.width, context.canvas.height);
+            }, function (layer) {
+                listManager.add({ name: 'video stream', id: layer.id });
+                layer.active = true;
+            });
+
+            // Subscribe to image upload events
+            commandPublisher.subscribe('IMAGE_UPLOADED', function (event) {
+                canvasControl.addLayer(null, function (layer) {
+                    layer.context.drawImage(layer.image, 0, 200, 200, 150);
+                }, function (layer) {
+                    listManager.add({ name: event.name, id: layer.id });
+                    layer.active = true;
+                    layer.image = event.image;
+                    layer.x = Math.floor(Math.random() * layer.canvas.width);
+                    layer.y = Math.floor(Math.random() * layer.canvas.height);
+                });
+            });
+        };
+    </script>
+</body>
+
+</html>
