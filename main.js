@@ -153,15 +153,9 @@ const ListManager = (function () {
  * 
  * @param {Object} options - Configuration options for the `CanvasControl`.
  * @param {HTMLCanvasElement} options.canvas - The canvas element used for drawing and rendering.
- * @param {HTMLElement} [options.play] - Button element for starting playback.
- * @param {HTMLElement} [options.stop] - Button element for stopping playback.
- * @param {HTMLElement} [options.startRecord] - Button element for starting recording.
- * @param {HTMLElement} [options.stopRecord] - Button element for stopping recording.
  * @param {HTMLElement} [options.overlay] - Element displayed during recording.
  * @param {HTMLMediaElement} [options.source] - Media source (e.g., video element) for rendering on the canvas.
  * @param {HTMLElement} [options.volume] - Element representing the volume control.
- * @param {HTMLElement} [options.volumeUp] - Button element for increasing volume.
- * @param {HTMLElement} [options.volumeDown] - Button element for decreasing volume.
  * @param {HTMLMediaElement} [options.playback] - Element for playback of recorded content.
  * 
  * @returns {Object} An instance of `CanvasControl` with methods to manage canvas operations.
@@ -240,17 +234,17 @@ const CanvasControl = (function () {
         getLayerContext: function () {
 
         },
-/**
- * @method addLayer
- * @description
- * Adds a layer to the canvas with a specified rendering function and optional setup function.
- * 
- * @param {number|null} id - The ID of the layer. If null, an ID will be generated based on the layer count.
- * @param {Function} render - The function used to render the layer.
- * @param {Function} [context] - Optional setup function for the layer context.
- * 
- * @throws {Error} If a layer with the same ID already exists.
- */
+        /**
+         * @method addLayer
+         * @description
+         * Adds a layer to the canvas with a specified rendering function and optional setup function.
+         * 
+         * @param {number|null} id - The ID of the layer. If null, an ID will be generated based on the layer count.
+         * @param {Function} render - The function used to render the layer.
+         * @param {Function} [context] - Optional setup function for the layer context.
+         * 
+         * @throws {Error} If a layer with the same ID already exists.
+         */
         addLayer: function (id, render, context) {
             if (this.layers.find(layer => layer.id === id)) {
                 throw new Error(`Layer id: ${id} exists`);
@@ -301,12 +295,13 @@ const CanvasControl = (function () {
         },
         startRecord: function (event) {
             event.preventDefault();
-            if(this.mediaRecorder.state !== 'recording'){
+            if (this.mediaRecorder.state !== 'recording') {
                 this.overlay.style.display = 'block';
                 this.mediaRecorder.start();
             }
         },
         stopRecord: function (event) {
+            event.preventDefault();
             this.mediaRecorder.stop();
             this.overlay.style.display = '';
         },
@@ -325,46 +320,55 @@ const CanvasControl = (function () {
                 this.volume.style.height = `${Math.floor(value * 100)}%`;
                 this.gainNode.gain.value = value;
             }
+        },
+        notify: function (event) {
+            switch (event.action) {
+                case 'PLAY':
+                    this.play(event.event);
+                    break;
+                case 'STOP':
+                    this.stop(event.event);
+                    break;
+                case 'VOLUME_UP':
+                    this.volumeIncrease();
+                    break;
+                case 'VOLUME_DOWN':
+                    this.volumeDecrease();
+                    break;
+                case 'START_RECORD':
+                    this.startRecord(event.event);
+                    break;
+                case 'STOP_RECORD':
+                    this.stopRecord(event.event);
+                    break;
+            }
+        },
+        setSource: function(stream){
+            this.source = document.createElement('video');
+            if ('srcObject' in this.source) {
+                this.source.srcObject = stream;
+            } else {
+                this.source.src = URL.createObjectURL(stream);
+            }
+            this.setStream(stream);
         }
     }
 
     return function (options) {
 
-        let layers = [];
-        let layerContext = {};
         let $ = {
             audio: null,
             interval: null,
-            layers: layers,
+            layers: [],
+            contexts: {},
             ...options,
-            contexts: layerContext,
             ...api,
             initialize: function () {
                 if (options.canvas) {
                     options.canvas.originClean = true;
                     this.setCanvas(options.canvas);
                 }
-                if (options.play) {
-                    options.play.addEventListener('click', $.play.bind(this));
-                }
-                if (options.stop) {
-                    options.stop.addEventListener('click', $.stop.bind(this));
-                }
-                if (options.startRecord) {
-                    options.startRecord.addEventListener('click', $.startRecord.bind($));
-                }
-                if (options.stopRecord) {
-                    options.stopRecord.addEventListener('click', $.stopRecord.bind($));
-                }
-                if (options.volumeUp) {
-                    options.volumeUp.addEventListener('click', $.volumeIncrease.bind($));
-                }
-                if (options.volumeDown) {
-                    options.volumeDown.addEventListener('click', $.volumeDecrease.bind($));
-                }
-                if (options.source) {
-                    $.source = options.source;
-                }
+                options.streamProvider().then($.setSource.bind($));
             }
         };
         $.initialize();
